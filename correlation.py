@@ -6,14 +6,47 @@ from skimage import measure
 import imutils
 import statistics
 from os import walk
-
+from collections import Counter
 
 IMAGE_NAME='a'
 
 
 def main(image_name):
+
+    def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
+        # initialize the dimensions of the image to be resized and
+        # grab the image size
+        dim = None
+        (h, w) = image.shape[:2]
+
+        # if both the width and height are None, then return the
+        # original image
+        if width is None and height is None:
+            return image
+
+        # check to see if the width is None
+        if width is None:
+            # calculate the ratio of the height and construct the
+            # dimensions
+            r = height / float(h)
+            dim = (int(w * r), height)
+
+        # otherwise, the height is None
+        else:
+            # calculate the ratio of the width and construct the
+            # dimensions
+            r = width / float(w)
+            dim = (width, int(h * r))
+
+        # resize the image
+        resized = cv2.resize(image, dim, interpolation = inter)
+        return resized
+
+
     image = cv2.imread(image_name)
+    # image = image_resize(image,height=512)
     global_img_Y,global_img_X,c = image.shape
+
 
     def autocorrelation(img,multiplier=3):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -37,7 +70,7 @@ def main(image_name):
         cv2.imwrite('fourier/'+IMAGE_NAME,thres)
         return thres
     def detect_contour(thres):
-        MIN_THRESH = 0.0001*(global_img_X*global_img_Y)
+        MIN_THRESH = 0.00001*(global_img_X*global_img_Y)
         centers = []
 
         thres = cv2.dilate(thres, None, iterations=1)
@@ -65,7 +98,7 @@ def main(image_name):
 
         
             else:
-                print('NO ANY BRIGHT SPOTS DETECTED')
+                print('Bright spots less than threshold')
         return centers
     def findintersection(center):
         point_of_same_cordinate =[]
@@ -150,21 +183,40 @@ def main(image_name):
         diff_X = [abs(k) for k in diff_X]
         diff_Y = [abs(k) for k in diff_Y]
 
-        print(diff_X,diff_Y)
+        print('differences are =',diff_X,diff_Y)
         
         try:
             mode_X = most_common(diff_X)
             mode_Y = most_common(diff_Y)
+            differenceX_counter = Counter(diff_X)
+            differenceY_counter = Counter(diff_Y)
+            print(differenceX_counter)
+            print(differenceY_counter)
 
-        # mode_X = abs(statistics.mode(diff_X))
-        # mode_Y = abs(statistics.mode(diff_Y))
+            if min(differenceX_counter.most_common()[1][0],differenceX_counter.most_common()[0][0]) != 0:
+                if (max(differenceX_counter.most_common()[1][0],differenceX_counter.most_common()[0][0] ) % min(differenceX_counter.most_common()[1][0],differenceX_counter.most_common()[0][0]) == 0) :
+                    mode_X = differenceX_counter.most_common()[1][0]
+                    if mode_X == global_img_X:
+                        mode_X = differenceX_counter.most_common()[0][0]
+                    
+                else:
+                    mode_X = differenceX_counter.most_common()[0][0]
+            if min(differenceY_counter.most_common()[1][0],differenceY_counter.most_common()[0][0]) != 0:
+                if (max(differenceY_counter.most_common()[1][0],differenceY_counter.most_common()[0][0]) % min(differenceY_counter.most_common()[0][0],differenceY_counter.most_common()[1][0]) == 0) :
+                    mode_Y = differenceY_counter.most_common()[1][0]
+                    if mode_Y == global_img_Y:
+                        mode_Y = differenceY_counter.most_common()[0][0]
+                else:
+                    mode_Y = differenceY_counter.most_common()[0][0]
+
+
         except statistics.StatisticsError :
             print('cant find mode')
             mode_X = int(np.mean(diff_X))
             mode_Y = int(np.mean(diff_Y))
             intersection = (mode_X,mode_Y)
 
-        print(mode_X,mode_Y)
+        print('the modal values are=',mode_X,mode_Y)
         if mode_X == 0:
             print("Horizontal lining Pattern")
             try:
@@ -190,6 +242,8 @@ def main(image_name):
             # cv2.rectangle(image,(0,0),(mode_X,mode_center),(0, 255, 0), 1)
             print(mode_X,mode_center)
             intersection = (mode_X,mode_center)
+        else:
+            intersection = (mode_X,mode_Y)
 
             # cv2.imshow('lining',image)
 
@@ -302,8 +356,8 @@ def main(image_name):
 
     repeat_inX = round((global_img_X/(template_sizeX)))
     repeat_inY = round((global_img_Y/template_sizeY))
-    print('Repeat in X Direction =',repeat_inX)
-    print('Repeat in Y Direction =',repeat_inY)
+    # print('Repeat in X Direction =',repeat_inX)
+    # print('Repeat in Y Direction =',repeat_inY)
 
     # print(subtraction_values)
     # print(np.std(np.array(subtraction_values)))

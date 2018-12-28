@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 from os import walk
-
+import imutils
 
 
 def main(IMG_NAME):
@@ -76,39 +76,54 @@ def main(IMG_NAME):
                 break
         return(x,y)
 
+    def detect_contour(thres):
+        MIN_THRESH = 0
+        # MIN_THRESH = 0.00001*(global_img_X*global_img_Y)
+        centers = []
+        kernel = np.ones((11,11),np.uint8)
 
+        thres = cv2.dilate(thres, None, iterations=1)
+        thres = cv2.convertScaleAbs(thres)
+        cnts= cv2.findContours(thres,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if imutils.is_cv2() else cnts[1]
+        # print(cnts)
+        # loop over the contours
 
-    import_image = cv2.imread(IMG_NAME, 0)
+        i = 0
+        for c in cnts:
+            if cv2.contourArea(c) > MIN_THRESH:
+            # compute the center of the contour
+                M = cv2.moments(c)
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+
+                centers.append((cX,cY))
+        return centers
+
+    # import_image = cv2.imread(IMG_NAME, 0)
     # cv2.imshow('gray',import_image)
     IMG_NAME = IMG_NAME.split('/')[1]
-    original_image = cv2.imread('Mirror/'+IMG_NAME)
-    row_indexes, col_indexes = get_indexes(import_image)
-    row_breaks = get_break_points(row_indexes[0])
-    col_breaks = get_break_points(col_indexes[0])
-    print(row_indexes, col_indexes)
-    # print(np.where(y_indexes==71723))
-    x,y = compare_breaks(import_image,row_breaks, col_breaks)
-    if (x==0 and y==0):
-        if (len(col_breaks) < 2):
-            x = col_indexes[0][1] - col_indexes[0][0]
-        else:
-            x = col_breaks[1] - col_breaks[0]
-        if (len(row_breaks) < 2):
-            y = row_indexes[0][1] - row_indexes[0][0]
-        else:
-            y = row_breaks[1] - row_breaks[0]
-        # output = original_image[0:y, 0:x]
-        cv2.rectangle(original_image,(0,0),(x,y),(0, 255, 0), 2)
+    original_image = cv2.imread('fourier/'+IMG_NAME,0)
 
-    else:
-        # output = original_image[0:y, 0:x]
-        cv2.rectangle(original_image,(0,0),(x,y),(0, 255, 0), 2)
 
-    cv2.imwrite('output/'+IMG_NAME,original_image)
+    centers = detect_contour(original_image)
+    col_value=[]
+    row_value=[]
+    for each in centers:
+        (x,y) = each
+        if x not in col_value:
+            col_value.append(x)
+        if y not in row_value:
+            row_value.append(y)
 
+    print(col_value,row_value)
+    print(original_image[0][0])
+    diff_X = [t - s for s, t in zip(col_value, col_value[1:])]
+    diff_Y = [t - s for s, t in zip(row_value, row_value[1:])]
+    # cv2.imwrite('output/'+IMG_NAME,original_image)
+    print(diff_X,diff_Y)
 # IMG_NAME = '181203-043641-5284.png'
 
-# main(IMG_NAME)
 f = []
 for (dirpath, dirnames, filenames) in walk('fourier'):
     f.extend(filenames)
