@@ -9,39 +9,38 @@ from os import walk
 
 
 IMAGE_NAME='a'
-weight_counter = 3
 
-def reconstruct(image_name):
+
+def main(image_name):
     image = cv2.imread(image_name)
     global_img_Y,global_img_X,c = image.shape
 
-    def autocorrelation(img,weight):
+    def autocorrelation(img,multiplier=3):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         fft = np.fft.fft2(img)
         cor = fft*fft
         inv = np.fft.ifft2(cor)
         mag = 20*np.log10(abs(inv))
-        thres = cv2.threshold(mag, np.mean(mag)+weight*np.std(mag), 255, cv2.THRESH_BINARY)[1]
-        cv2.imwrite('fourier/'+weight+IMAGE_NAME,thres)
-        return thres
-        # cv2.imshow('mag.png',mag)
-    def autocorrelation_for_line(img):
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        fft = np.fft.fft2(img)
-        cor = fft*fft
-        inv = np.fft.ifft2(cor)
-        mag = 20*np.log10(abs(inv))
-        thres = cv2.threshold(mag, np.mean(mag)+2*np.std(mag), 255, cv2.THRESH_BINARY)[1]
-        # th3 = cv2.adaptiveThreshold(mag,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,11,2)
-        cv2.imwrite('fourier/2'+IMAGE_NAME,thres)
+        # mag = mag*255
+        # mag = mag.astype('uint8')
+        #### threshold 196
+
+        print('MEAN VALUE',np.mean(mag)+multiplier*np.std(mag))
+        # thres = cv2.threshold(mag, np.mean(mag)+multiplier*np.std(mag), 255, cv2.THRESH_BINARY)[1]
+        thres = cv2.threshold(mag, np.mean(mag)+multiplier*np.std(mag), 255, cv2.THRESH_BINARY)[1]
+        kernel = np.ones((11,11),np.uint8)
+        # opening = cv2.morphologyEx(thres, cv2.MORPH_OPEN, kernel)
+        # dilation = cv2.dilate(thres,kernel,iterations = 5)
+        closing = cv2.morphologyEx(thres, cv2.MORPH_CLOSE, kernel)
+
+        cv2.imwrite('fourier/'+IMAGE_NAME,thres)
         return thres
     def detect_contour(thres):
-        MIN_THRESH = 0
+        MIN_THRESH = 0.0001*(global_img_X*global_img_Y)
         centers = []
 
-        thres = cv2.dilate(thres, None, iterations=4)
+        thres = cv2.dilate(thres, None, iterations=1)
         thres = cv2.convertScaleAbs(thres)
         cnts= cv2.findContours(thres,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         cnts = cnts[0] if imutils.is_cv2() else cnts[1]
@@ -58,7 +57,7 @@ def reconstruct(image_name):
 
                 centers.append([cX,cY])
                 centers[i] = (cX,cY)
-                print(cX,cY)
+                # print(cX,cY)
                 # print('from contour')
                 i += 1
                 # draw the contour and center of the shape on the image
@@ -108,7 +107,7 @@ def reconstruct(image_name):
                 out = each
                 point_of_same_cordinate.append((each[0],each[0]))
                 
-        return out,point_of_same_cordinate
+        return point_of_same_cordinate
     def roation_and_subtraction(template1,template2):
         subtraction_values = []
 
@@ -136,9 +135,8 @@ def reconstruct(image_name):
 
 
         return subtraction_values
-    def detect_lines(img):
-        # thres = autocorrelation_for_line(img)
-        centers = detect_contour(thres)
+    def detect_lines(centers):
+        
         intersection = ()
         cenX=[]
         cenY=[]
@@ -149,21 +147,31 @@ def reconstruct(image_name):
         ## computing the difference of consecutive elements
         diff_X = [t - s for s, t in zip(cenX, cenX[1:])]
         diff_Y = [t - s for s, t in zip(cenY, cenY[1:])]
+        diff_X = [abs(k) for k in diff_X]
+        diff_Y = [abs(k) for k in diff_Y]
+
+        print(diff_X,diff_Y)
+        
         try:
-            mode_X = abs(statistics.mode(diff_X))
-            mode_Y = abs(statistics.mode(diff_Y))
+            mode_X = most_common(diff_X)
+            mode_Y = most_common(diff_Y)
+
+        # mode_X = abs(statistics.mode(diff_X))
+        # mode_Y = abs(statistics.mode(diff_Y))
         except statistics.StatisticsError :
             print('cant find mode')
-            mode_X = int(abs(np.mean(diff_X)))
-            mode_Y = int(abs(np.mean(diff_Y)))
+            mode_X = int(np.mean(diff_X))
+            mode_Y = int(np.mean(diff_Y))
+            intersection = (mode_X,mode_Y)
+
         print(mode_X,mode_Y)
         if mode_X == 0:
             print("Horizontal lining Pattern")
             try:
-                mode_center = statistics.mode(cenX)
+                mode_center = most_common(cenX)
             except:
                 ######### single horizontal line pattern in autocorrelated image
-                mode_center = int(global_img_X)
+                mode_center = int(most_common(cenY))
             # cv2.rectangle(image,(0,0),(mode_center,mode_Y),(0, 255, 0), 1)
             print(mode_center,mode_Y)
             intersection = (mode_center,mode_Y)
@@ -173,17 +181,18 @@ def reconstruct(image_name):
             print("Vertical Lining Pattern")
             try:
                 mode_center = statistics.mode(cenY)
-                times_Y = round(global_img_Y/mode_center)
-                mode_center = int(global_img_Y/times_Y) 
+                # times_Y = round(global_img_Y/mode_center)
+                # mode_center = int(global_img_Y/times_Y) 
             except:
-                y,x,c = image.shape
-                mode_center = int(y)
-            print(mode_center)
+                # y,x,c = image.shape
+                mode_center = int(global_img_Y)
+            # print(mode_center)
             # cv2.rectangle(image,(0,0),(mode_X,mode_center),(0, 255, 0), 1)
             print(mode_X,mode_center)
             intersection = (mode_X,mode_center)
 
             # cv2.imshow('lining',image)
+
         return intersection
     def extract_templates(intersection_X,intersection_Y):
         
@@ -207,74 +216,86 @@ def reconstruct(image_name):
         cv2.imwrite('template1.png',template1)
         cv2.imwrite('template2.png',template2)
         return template1,template2
+    def reconstruct_image_from_template(img_name,template):
+        img1 = cv2.imread(img_name,0)
+        img2 = cv2.cvtColor(template,cv2.COLOR_BGR2GRAY)
+        h1, w1 = img1.shape[:2]
+        h2, w2 = img2.shape[:2]
+        vis = np.zeros((global_img_Y, global_img_X+10), np.uint8)
+        vis[:global_img_Y, :global_img_X] = img1
+        vis[:global_img_Y, global_img_X:global_img_X+10] = 0
 
 
-    try:
-        #### FOR GENERAL IMAGE
-        thres = autocorrelation(image,3)
+        this = img2
+        for j in range(0,repeat_inX-1):
+            this = np.concatenate((this, img2), axis=1)
+        that = this
+        for i in range (0,repeat_inY-1):
+            that = np.concatenate((that, this))
+
+        height_max = (max(global_img_Y,that.shape[0]))
+
+        if global_img_Y < height_max:
+            black_rows=np.zeros(vis.shape[1], np.uint8)
+            diff = height_max-global_img_Y
+            for i in range (0,diff):
+                vis = np.vstack([vis,black_rows])
+
+        elif that.shape[0] < height_max:
+            black_rows = np.zeros(that.shape[1], np.uint8)
+
+            h1 = that.shape[0]
+            diff = height_max-h1
+            for i in range (0,diff):
+                that = np.vstack([that,black_rows])
+
+        img_name = img_name.split('/')[1]
+        img_name = 'reconstructed/'+img_name
+        new =np.concatenate((vis,that),axis=1)
+        cv2.imwrite(img_name,new)
+    def most_common(lst):
+        return max(set(lst), key=lst.count)
+
+
+    #### FOR GENERAL IMAGE
+    thres = autocorrelation(image,multiplier=3)
+    ####### CENTER CONSISTS OF ALL THE CENTERS OF CONTOURS IN FOURIER
+    centers = detect_contour(thres)
+    if len(centers)<2 :
+        thres = autocorrelation(image,multiplier=2)
         centers = detect_contour(thres)
+        
         if len(centers)<1 :
-            thres = autocorrelation(image,2)
+            thres = autocorrelation(image,multiplier=1)
             centers = detect_contour(thres)
-            if len(centers)<1 :
-                thres = autocorrelation(image,1)
-                centers = detect_contour(thres)
-                if len(centers)<1:
-                    print("ERRORRR NO CONTOUR")
-
-        intersection,same_points = findintersection(reversed(centers))
-
-        if (len(same_points)>1):
+            if len(centers)<1:
+                print("ERRORRR NO ANY BRIGHT SPOTS OF FOURIER")
+                
+############ SAME POINTS CONSISTS OF ALL THE POINTS WHOSE X_AXES ANS Y_AXES VALUE ARE SILIMAR
+    same_points = findintersection(reversed(centers))
+    if len(same_points)>1:
+        (intersection_X,intersection_Y)=same_points[1]
+        if (global_img_X/intersection_X) > 1.9:
             (intersection_X,intersection_Y)=same_points[1]
-            if (global_img_X/intersection_X) > 1.9:
-                (intersection_X,intersection_Y)=same_points[1]
-            else:
-                (intersection_X,intersection_Y)=same_points[0]
         else:
-            (intersection_X,intersection_Y) = same_points[0]
-        print(intersection)
-        print('same intersection',same_points)
-        # pattern = cv2.rectangle(image,(0,0),intersection,(0,255,0),1)
-
-    except:
-        ######### FOR LINE
-        thres = autocorrelation_for_line(image)
-        try:
-            centers = detect_contour(thres)
-            intersection,same_points = findintersection(reversed(centers))
-
-            if (len(same_points)>1):
-                (intersection_X,intersection_Y)=same_points[1]
-                if (global_img_X/intersection_X) > 1.9:
-                    (intersection_X,intersection_Y)=same_points[1]
-                else:
-                    (intersection_X,intersection_Y)=same_points[0]
-            else:
-                (intersection_X,intersection_Y) = same_points[0]
-        except:
-            print('EXCEPTION CAUGHT')
-            thres = autocorrelation_for_line(image)
-
-            (intersection_X,intersection_Y) = detect_lines(thres)
+            (intersection_X,intersection_Y)=same_points[0]
+    elif len(same_points)==1:
+        (intersection_X,intersection_Y) = same_points[0]
+        print("ONLY ONE SIMILAR POINT DETEECTED")
+    else:
+        print('NO ANY SIMILAR POINTS FOUND ONLY CONTOUR DERTECTED,, MUST BE LINE PATTERN')
+        print('before going to line pattern the centers are ::',centers)
+        (intersection_X,intersection_Y) = detect_lines(centers)
+    # print('same intersection',same_points)
 
         
     print('finally intersenting point are',intersection_X,intersection_Y)
 
     template1, template2 = extract_templates(intersection_X,intersection_Y)
-
+    pattern = cv2.rectangle(image,(0,0),(intersection_X,intersection_Y),(0,255,0),2)
+    cv2.imwrite('output/'+IMAGE_NAME,pattern)
     # rotation--------------------------------
-    # subtraction_values = roation_and_subtraction(template1,template2)
-    # subtraction_values.sort(reverse=True)
-
-    # minimum_value = subtraction_values[len(subtraction_values)-1]
-    # maximum_value = subtraction_values[0]
-    # difference = maximum_value-minimum_value
-
-    # if difference > (maximum_value*0.50):
-    #     print('MIRRORED  IMAGE')
-    #     print(centers)
-    # else:
-    #     print('NOT MIRRORED IMAGE')
+  
 
 
     template_sizeY,template_sizeX,c =template1.shape 
@@ -288,43 +309,7 @@ def reconstruct(image_name):
     # print(np.std(np.array(subtraction_values)))
 
 
-    # img1 = cv2.imread(image_name,0)
-    # img2 = cv2.cvtColor(template1,cv2.COLOR_BGR2GRAY)
-    # h1, w1 = img1.shape[:2]
-    # h2, w2 = img2.shape[:2]
-    # vis = np.zeros((global_img_Y, global_img_X+10), np.uint8)
-    # vis[:global_img_Y, :global_img_X] = img1
-    # vis[:global_img_Y, global_img_X:global_img_X+10] = 0
-
-
-    # this = img2
-    # for j in range(0,repeat_inX-1):
-    #     this = np.concatenate((this, img2), axis=1)
-    # that = this
-    # for i in range (0,repeat_inY-1):
-    #     that = np.concatenate((that, this))
-
-    # height_max = (max(global_img_Y,that.shape[0]))
-
-    # if global_img_Y < height_max:
-    #     black_rows=np.zeros(vis.shape[1], np.uint8)
-    #     diff = height_max-global_img_Y
-    #     for i in range (0,diff):
-    #         vis = np.vstack([vis,black_rows])
-
-    # elif that.shape[0] < height_max:
-    #     black_rows = np.zeros(that.shape[1], np.uint8)
-
-    #     h1 = that.shape[0]
-    #     diff = height_max-h1
-    #     for i in range (0,diff):
-    #         that = np.vstack([that,black_rows])
-
-    # image_name = image_name.split('/')[1]
-    # image_name = 'reconstructed/'+image_name
-    # new =np.concatenate((vis,that),axis=1)
-    # cv2.imwrite(image_name,new)
-
+    reconstruct_image_from_template(image_name,template1)
 # image_name = 'Gide Paragh-160817-113622-9236-160819-105129-1542.png'
 # reconstruct(image_name)
 
@@ -340,7 +325,7 @@ for each in f:
     IMAGE_NAME = IMAGE_NAME.split('/')[1]
     print(IMAGE_NAME)
 
-    reconstruct(name)
+    main(name)
     print("processing image",counter)
     counter+=1
 
