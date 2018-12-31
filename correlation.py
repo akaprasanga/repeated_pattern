@@ -67,7 +67,7 @@ def main(image_name):
         # dilation = cv2.dilate(thres,kernel,iterations = 5)
         closing = cv2.morphologyEx(thres, cv2.MORPH_CLOSE, kernel)
 
-        cv2.imwrite('fourier/'+IMAGE_NAME,thres)
+        cv2.imwrite('fourier/'+IMAGE_NAME,mag)
         return thres
     def detect_contour(thres):
         MIN_THRESH = 0.00001*(global_img_X*global_img_Y)
