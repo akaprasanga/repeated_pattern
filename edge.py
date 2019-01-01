@@ -32,4 +32,14 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     return resized
 
 
-image = cv2.imshow('',0)
+image = cv2.imread('Bhaca Arture.png',0)
+
+# gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Convert image to grayscale
+
+kernel = np.ones((15, 15), np.uint8)
+
+# opening = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)  # Open (erode, then dilate)
+edges = cv2.Canny(image, 50, 100, apertureSize=3)  # Canny edge detection
+
+cv2.imshow('edges',edges)
+cv2.waitKey(0)

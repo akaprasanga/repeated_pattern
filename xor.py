@@ -8,34 +8,34 @@ import random
 def main(name):
     img_name = name
     img1 = cv2.imread(img_name,0)
-    img2 = cv2.imread(img_name,0)
+    # img2 = cv2.imread(img_name,0)
 
     h,w = img1.shape
 
     def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
         # initialize the dimensions of the image to be resized and
         # grab the image size
-        # dim = None
+        dim = None
         (h, w) = image.shape[:2]
 
-        random_number = (random.randint(-10,10)/100)
-        h = int(h + (random_number*h))
-        w = int(h + (random_number*w))
-        dim = (w,h)
-        print('size of iamge after resize = ', dim)
+        # random_number = (random.randint(-10,10)/100)
+        # h = int(h + (random_number*h))
+        # w = int(h + (random_number*w))
+        # dim = (w,h)
+        # print('size of iamge after resize = ', dim)
 
-        # if width is None and height is None:
-        #     return image
+        if width is None and height is None:
+            return image
 
 
-        # if width is None:
+        if width is None:
 
-        #     r = height / float(h)
-        #     dim = (int(w * r), height)
+            r = height / float(h)
+            dim = (int(w * r), height)
 
-        # else:
-        #     r = width / float(w)
-        #     dim = (width, int(h * r))
+        else:
+            r = width / float(w)
+            dim = (width, int(h * r))
 
         resized = cv2.resize(image, dim, interpolation = inter)
         return resized
@@ -140,54 +140,81 @@ def main(name):
                 print("Horizontal Lining Pattern")
                 intersection_X = int(global_imgX/2)
                 intersection_Y = dark_in_Y[0]
-                template = extract_template(intersection_X,intersection_Y,img1)
-                reconstruct_image_from_template(img1,template,img_name) 
+                return (intersection_X,intersection_Y) 
+
+                # template = extract_template(intersection_X,intersection_Y,img1)
+                # reconstruct_image_from_template(img1,template,img_name) 
 
             elif (len(dark_in_Y)) >= int(global_imgY/2)-2 :
                 print("Vertical Lining Pattern")
                 intersection_X = dark_in_X[0]
                 intersection_Y = int(global_imgY/2)
-                template = extract_template(intersection_X,intersection_Y,img1) 
-                reconstruct_image_from_template(img1,template,img_name) 
+                return (intersection_X,intersection_Y) 
+
+                # template = extract_template(intersection_X,intersection_Y,img1) 
+                # reconstruct_image_from_template(img1,template,img_name) 
 
             else:
                 #### Normal Pattern
                 ######## LOGIC TO DETECT FALSE NEGATIVES PATTERNS
                 if ((dark_in_X[0]==1) & (dark_in_Y[0]==1))|((dark_in_X[0]==global_imgX-1) & (dark_in_Y[0]==global_imgY-1)):
-                    print("NO any repeated pattern detected 2")
-                    img_name = img_name.split('/')[1]
-                    cv2.imwrite('norepeat/'+img_name,img1) 
+                    print("NO any repeated pattern detected LEVEL = 2")
+                    print("NOW returning for EDGE DETECTION")
+                    return None
                 elif (dark_in_X[0]==1) & (dark_in_Y[0]!= 1)&(dark_in_Y[0]!=global_imgY-1):
                     intersection_X = global_imgX
                     intersection_Y = dark_in_Y[0]
-                    template = extract_template(intersection_X,intersection_Y,img1) 
-                    reconstruct_image_from_template(img1,template,img_name) 
+                    return (intersection_X,intersection_Y) 
                 elif (dark_in_Y[0]==1) & (dark_in_X[0]!= 1)&(dark_in_X[0]!= global_imgX-1):
                     intersection_X = dark_in_X[0]
                     intersection_Y = global_imgY
-                    template = extract_template(intersection_X,intersection_Y,img1) 
-                    reconstruct_image_from_template(img1,template,img_name) 
+                    return (intersection_X,intersection_Y) 
+
                 else:
                     intersection_X = dark_in_X[0]
                     intersection_Y = dark_in_Y[0]
-                    template = extract_template(intersection_X,intersection_Y,img1) 
-                    reconstruct_image_from_template(img1,template,img_name) 
+                    return (intersection_X,intersection_Y) 
+ 
         
 
 
         else:
-            print("NO any repeated pattern detected 1")
-            cv2.imwrite('norepeat/'+img_name,img1) 
+            print("NO any repeated pattern detected LEVEL = 1")
+            cv2.imwrite('norepeat/'+img_name,img1)
+             
 
 
-    img1 = image_resize(img1,width=int(w))
+    img1 = image_resize(img1,width=int(w/2))
+    # edges = cv2.Canny(img1, 50, 100, apertureSize=3)  # Canny edge detection
+
     img2 = img1
+
 
 
     global_imgY, global_imgX = img1.shape
 
     dark_in_X,dark_in_Y = xoring_image(img1,img2)
-    centers_analysis(dark_in_X,dark_in_Y,img_name)
+
+    returned_centers = centers_analysis(dark_in_X,dark_in_Y,img_name)
+    if returned_centers != None :
+        (intersection_X,intersection_Y) = returned_centers
+        template = extract_template(intersection_X,intersection_Y,img1)
+        reconstruct_image_from_template(img1,template,img_name)
+    else:
+        edges = cv2.Canny(img1, 50, 100, apertureSize=3)  # Canny edge detection
+        img2 = edges
+        dark_in_X,dark_in_Y = xoring_image(edges,img2)
+        returned_centers = centers_analysis(dark_in_X,dark_in_Y,img_name)
+        if returned_centers != None :
+            (intersection_X,intersection_Y) = returned_centers
+            template = extract_template(intersection_X,intersection_Y,img1)
+            reconstruct_image_from_template(img1,template,img_name)
+        else:
+            print(" Failed to detect Any Repeated Pattern Level = 3 ")
+            print(img_name)
+            img_name = img_name.split('/')[1]
+            cv2.imwrite('norepeat/'+img_name,img1)  
+
 
 
 f = []
