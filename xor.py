@@ -3,7 +3,7 @@ import numpy as np
 import operator
 import time
 from os import walk
-
+import random
 
 def main(name):
     img_name = name
@@ -15,32 +15,35 @@ def main(name):
     def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
         # initialize the dimensions of the image to be resized and
         # grab the image size
-        dim = None
+        # dim = None
         (h, w) = image.shape[:2]
 
-        # if both the width and height are None, then return the
-        # original image
-        if width is None and height is None:
-            return image
+        random_number = (random.randint(-10,10)/100)
+        h = int(h + (random_number*h))
+        w = int(h + (random_number*w))
+        dim = (w,h)
+        print('size of iamge after resize = ', dim)
 
-        # check to see if the width is None
-        if width is None:
-            # calculate the ratio of the height and construct the
-            # dimensions
-            r = height / float(h)
-            dim = (int(w * r), height)
+        # if width is None and height is None:
+        #     return image
 
-        # otherwise, the height is None
-        else:
-            # calculate the ratio of the width and construct the
-            # dimensions
-            r = width / float(w)
-            dim = (width, int(h * r))
 
-        # resize the image
+        # if width is None:
+
+        #     r = height / float(h)
+        #     dim = (int(w * r), height)
+
+        # else:
+        #     r = width / float(w)
+        #     dim = (width, int(h * r))
+
         resized = cv2.resize(image, dim, interpolation = inter)
         return resized
     def xoring_image(img1,img2):
+
+        # ret2,img1 = cv2.threshold(img1,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        # ret2,im2 = cv2.threshold(img2,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
         average_roll_X = {}
         average_roll_Y = {}
 
@@ -59,8 +62,8 @@ def main(name):
             average_roll_Y[i]=avg
 
         end_x = time.time()
-        print("TIME taken to process image  ==",end_x-start_X)
-
+        print("TIME TAKEN TO PROCESS IMAGE  ==",end_x-start_X)
+        # print(average_roll_X,average_roll_Y)
         key_min = min(average_roll_X.keys(), key=(lambda k: average_roll_X[k]))
         minimum_value_X = average_roll_X[key_min]
         if minimum_value_X !=0 :
@@ -128,17 +131,8 @@ def main(name):
         img_name = 'reconstructed/'+img_name
         new =np.concatenate((vis,that),axis=1)
         cv2.imwrite(img_name,new)
-
-    img1 = image_resize(img1,width=int(w))
-    img2 = image_resize(img2,width=int(w))
-
-
-    global_imgY, global_imgX = img1.shape
-
-    dark_in_X,dark_in_Y = xoring_image(img1,img2)
-
-    if (len(dark_in_X) != 0) & (len(dark_in_Y) != 0):
-        if (dark_in_X[0]!=1)&(dark_in_Y[0]!=1):
+    def centers_analysis(dark_in_X,dark_in_Y,img_name):
+        if (len(dark_in_X) != 0) & (len(dark_in_Y) != 0):
             print(" Dark spots in X direction",dark_in_X)
             print(" Dark spots in Y direction",dark_in_Y)
 
@@ -158,18 +152,42 @@ def main(name):
 
             else:
                 #### Normal Pattern
-                intersection_X = dark_in_X[0]
-                intersection_Y = dark_in_Y[0]
-                template = extract_template(intersection_X,intersection_Y,img1) 
-                reconstruct_image_from_template(img1,template,img_name) 
+                ######## LOGIC TO DETECT FALSE NEGATIVES PATTERNS
+                if ((dark_in_X[0]==1) & (dark_in_Y[0]==1))|((dark_in_X[0]==global_imgX-1) & (dark_in_Y[0]==global_imgY-1)):
+                    print("NO any repeated pattern detected 2")
+                    img_name = img_name.split('/')[1]
+                    cv2.imwrite('norepeat/'+img_name,img1) 
+                elif (dark_in_X[0]==1) & (dark_in_Y[0]!= 1)&(dark_in_Y[0]!=global_imgY-1):
+                    intersection_X = global_imgX
+                    intersection_Y = dark_in_Y[0]
+                    template = extract_template(intersection_X,intersection_Y,img1) 
+                    reconstruct_image_from_template(img1,template,img_name) 
+                elif (dark_in_Y[0]==1) & (dark_in_X[0]!= 1)&(dark_in_X[0]!= global_imgX-1):
+                    intersection_X = dark_in_X[0]
+                    intersection_Y = global_imgY
+                    template = extract_template(intersection_X,intersection_Y,img1) 
+                    reconstruct_image_from_template(img1,template,img_name) 
+                else:
+                    intersection_X = dark_in_X[0]
+                    intersection_Y = dark_in_Y[0]
+                    template = extract_template(intersection_X,intersection_Y,img1) 
+                    reconstruct_image_from_template(img1,template,img_name) 
+        
+
+
         else:
-            print("NO any repeated pattern detected")
-            img_name = img_name.split('/')[1]
+            print("NO any repeated pattern detected 1")
             cv2.imwrite('norepeat/'+img_name,img1) 
 
-    else:
-        print("NO any repeated pattern detected")
-        cv2.imwrite('norepeat/'+img_name,img1) 
+
+    img1 = image_resize(img1,width=int(w))
+    img2 = img1
+
+
+    global_imgY, global_imgX = img1.shape
+
+    dark_in_X,dark_in_Y = xoring_image(img1,img2)
+    centers_analysis(dark_in_X,dark_in_Y,img_name)
 
 
 f = []
