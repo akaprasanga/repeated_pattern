@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 
 def sort_contours(cnts, method="left-to-right"):
-    # initialize the reverse flag and sort index
     reverse = False
     i = 0
 
@@ -21,7 +20,6 @@ def sort_contours(cnts, method="left-to-right"):
     (cnts, boundingBoxes) = zip(*sorted(zip(cnts, boundingBoxes),
                                         key=lambda b: b[1][i], reverse=reverse))
 
-    # return the list of sorted contours and bounding boxes
     return (cnts, boundingBoxes)
 
 def box_extraction(img_for_box_extraction_path, cropped_dir_path):
@@ -30,13 +28,11 @@ def box_extraction(img_for_box_extraction_path, cropped_dir_path):
     (thresh, img_bin) = cv2.threshold(img, 128, 255,
                                       cv2.THRESH_BINARY | cv2.THRESH_OTSU)  # Thresholding the image
     img_bin = 255-img_bin  # Invert the image
-
-    cv2.imwrite("Image_bin.jpg",img_bin)
    
     # Defining a kernel length
     kernel_length = np.array(img).shape[1]//40
      
-    # A verticle kernel of (1 X kernel_length), which will detect all the verticle lines from the image.
+    # A verticle kernel of (1 X kernel_length), which will detect all the vertical lines from the image.
     verticle_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, kernel_length))
     # A horizontal kernel of (kernel_length X 1), which will help to detect all the horizontal line from the image.
     hori_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_length, 1))
@@ -50,7 +46,7 @@ def box_extraction(img_for_box_extraction_path, cropped_dir_path):
 
     # Morphological operation to detect horizontal lines from an image
     img_temp2 = cv2.erode(img_bin, hori_kernel, iterations=3)
-    horizontal_lines_img = cv2.dilate(img_temp2, hori_kernel, iterations=3)
+    horizontal_lines_img = cv2.dilate(img_temp2, hori_kernel, iterations=10)
     # cv2.imwrite("horizontal_lines.jpg",horizontal_lines_img)
 
     # Weighting parameters, this will decide the quantity of an image to be added to make a new image.
