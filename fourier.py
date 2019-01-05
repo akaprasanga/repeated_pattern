@@ -10,3 +10,4 @@ cv2.imshow('original',img)
 
 cv2.imshow('rotated',rotated_180)
 cv2.waitKey()
+#not working here
