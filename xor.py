@@ -43,27 +43,25 @@ class repeat_detect:
             print("After Resize the size of Image is = ",dim)
             resized = cv2.resize(image, dim, interpolation = inter)
             return resized
-        def xoring_image(img1,img2):
 
-            # ret2,img1 = cv2.threshold(img1,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-            # ret2,im2 = cv2.threshold(img2,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        def xoring_image(img1,img2):
 
             average_roll_X = {}
             average_roll_Y = {}
 
             start_X = time.time()
 
-            for i in range(1,global_imgX):
-                rolled = np.roll(img1,i,axis=1)
-                xor = cv2.bitwise_xor(rolled,img2)
+            for i in range(1, global_imgX):
+                rolled = np.roll(img1, i, axis=1)
+                xor = cv2.bitwise_xor(rolled, img2)
                 avg = np.average(xor)
-                average_roll_X[i]=avg
+                average_roll_X[i] = avg
 
-            for i in range(1,global_imgY):
-                rolled = np.roll(img1,i,axis=0)
-                xor = cv2.bitwise_xor(rolled,img2)
+            for i in range(1, global_imgY):
+                rolled = np.roll(img1, i, axis=0)
+                xor = cv2.bitwise_xor(rolled, img2)
                 avg = np.average(xor)
-                average_roll_Y[i]=avg
+                average_roll_Y[i] = avg
 
             end_x = time.time()
             print("TIME TAKEN TO PROCESS IMAGE  ==",end_x-start_X)
@@ -134,7 +132,7 @@ class repeat_detect:
                 for i in range (0,diff):
                     that = np.vstack([that,black_rows])
 
-            words = img_name.split('/')
+            words = img_name.split('\\')
             img_name = words[len(words)-1]
             img_name = 'Output/'+img_name
             # new =np.concatenate((vis,that),axis=1)
@@ -142,8 +140,8 @@ class repeat_detect:
             cv2.imwrite(img_name,new)
         def centers_analysis(dark_in_X,dark_in_Y,img_name):
             if (len(dark_in_X) != 0) & (len(dark_in_Y) != 0):
-                print(" Dark spots in X direction",dark_in_X)
-                print(" Dark spots in Y direction",dark_in_Y)
+                print(" Dark spots in X direction", dark_in_X)
+                print(" Dark spots in Y direction", dark_in_Y)
 
                 if (len(dark_in_X)) >= int(global_imgX/2)-2 :
                     print("Horizontal Lining Pattern")
@@ -225,6 +223,10 @@ class repeat_detect:
     # path = "C:/Users/Swodha/Documents/Work/Prasanga/correlation/Repeat test set/Casamet 1-160817-110628-9477.png"
     # main(1,path)
 
+
+if __name__ == "__main__":
+    detectionObj = repeat_detect()
+    detectionObj.main("D:\Work\BorderDesignsTest\slided.png")
 # f = []
 # for (dirpath, dirnames, filenames) in walk('Mirror'):
 #     f.extend(filenames)
